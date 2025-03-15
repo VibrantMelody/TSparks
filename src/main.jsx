@@ -7,11 +7,9 @@ import App from "./App.jsx";
 import { ColorModeProvider } from "./components/ui/color-mode";
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <ChakraProvider value={defaultSystem}>
-      <ColorModeProvider>
-        <App />
-      </ColorModeProvider>
-    </ChakraProvider>
-  </StrictMode>
+  <ChakraProvider value={defaultSystem}>
+    <ColorModeProvider>
+      <App />
+    </ColorModeProvider>
+  </ChakraProvider>
 );

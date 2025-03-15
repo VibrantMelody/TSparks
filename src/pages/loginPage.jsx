@@ -1,6 +1,6 @@
 import { useState } from "react";
-import logo from "../assets/logo.png";
-import loginBackground from "../assets/loginSplash.png";
+import logo from "../assets/images/logo/tsparks-high-resolution-logo-transparent-black-text.png";
+import loginBackground from "../assets/images/wai-siew-HFau1CX6vsw-unsplash.jpg";
 import {
   Text,
   Box,
@@ -8,7 +8,6 @@ import {
   Flex,
   Image,
   Center,
-  Group,
   Input,
   Link,
   Button,
@@ -42,22 +41,34 @@ import { TbLockPassword } from "react-icons/tb";
 import { signInUser } from "../firebase";
 function LoginPage({ setDisplayPage }) {
   return (
-    <Flex height="100vh" width="100vw">
-      <Center
-        boxShadow="2xl"
-        axis="both"
-        height="95%"
-        width="48%"
+    <Flex height="100vh" width="100vw" position="relative">
+      <Box
+        width="49%"
+        height="98%"
         margin="auto"
-        borderRadius="lg"
+        padding="0"
+        borderRadius="15px"
+        shadow="2xl"
+        bgImage={`linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0)), url(${loginBackground})`}
+        bgSize="cover"
+        bgPosition="center"
+        bgRepeat="no-repeat"
+        position="relative"
       >
-        <Image
-          height="80%"
+        <Text
+          position="absolute"
+          bottom="5%"
+          left="50%"
+          transform="translateX(-50%)"
+          color="white"
           width="80%"
-          objectFit="cover"
-          src={loginBackground}
-        ></Image>
-      </Center>
+          textAlign="center"
+        >
+          "The right talent in the right place can transform industries and
+          change lives. At TSPARK, we don't just manage talent—we cultivate it,
+          empower it, and help it thrive in an ever-evolving world."
+        </Text>
+      </Box>
 
       <Center axis="both" height="100%" width="50%">
         <LoginSection setDisplayPage={setDisplayPage} />
@@ -67,7 +78,6 @@ function LoginPage({ setDisplayPage }) {
 }
 
 function LoginSection({ setDisplayPage }) {
-  const roles = ["Management", "HR Manager", "Employee"];
   const [selectedRole, setSelectedRole] = useState("Employee");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -79,7 +89,7 @@ function LoginSection({ setDisplayPage }) {
     const message = signIn.message;
 
     if (status == "success") {
-      setDisplayPage("EmployeePage");
+      setDisplayPage(selectedRole);
     } else {
       setDialogTrigger(true);
     }
@@ -98,13 +108,13 @@ function LoginSection({ setDisplayPage }) {
       width="60%"
       // outline="1px solid red"
     >
-      <Image src={logo}></Image>
+      <Image src={logo} height="20%" width="20%"></Image>
       <Text textStyle="2xl" fontWeight="bold">
         Login to your account
       </Text>
       <Text fontWeight="bold">select your role</Text>
       <SegmentedControl
-        size="md"
+        size="lg"
         defaultValue={selectedRole}
         value={selectedRole}
         onValueChange={(e) => handleRoleChange(e.value)}
@@ -113,6 +123,7 @@ function LoginSection({ setDisplayPage }) {
       <Separator width="80%" />
       <InputGroup flex="1" width="60%" startElement={<LuUser />}>
         <Input
+          size="lg"
           placeholder="Email"
           onChange={(e) => {
             setEmail(e.target.value);
@@ -122,6 +133,7 @@ function LoginSection({ setDisplayPage }) {
       <Stack width="60%">
         <InputGroup flex="1" startElement={<TbLockPassword />}>
           <PasswordInput
+            size="lg"
             placeholder="Password"
             onChange={(e) => {
               setPassword(e.target.value);

@@ -1,139 +1,196 @@
-import { LiaTasksSolid } from "react-icons/lia";
-import { PiBooksDuotone } from "react-icons/pi";
-import { CgPerformance } from "react-icons/cg";
-import { MdContactPage } from "react-icons/md";
-import { TbConePlus } from "react-icons/tb";
+import { useState, useEffect } from "react";
 import {
-  Table,
-  Flex,
-  Container,
-  Box,
   Text,
+  Box,
+  Container,
+  Flex,
+  Input,
   Button,
-  Icon,
+  HStack,
+  Stack,
+  Separator,
+  Heading,
+  Link,
 } from "@chakra-ui/react";
-import Sidebar from "../comps/sidebar";
-import { useState } from "react";
-import { CiBoxList } from "react-icons/ci";
-import { RxShare2 } from "react-icons/rx";
-import { taskData } from "../assets/fakedata";
+import { getAuth } from "firebase/auth";
+import { getDocsFromDb } from "../firebase";
 import {
-  LuCircleCheckBig,
-  LuCircleDashed,
-  LuCircleFadingArrowUp,
-  LuCircleSlash,
+  LuUser,
+  LuMail,
+  LuBriefcase,
+  LuBookOpen,
+  LuLogOut,
 } from "react-icons/lu";
+import { ArrowLeft } from "lucide-react";
 
-function EmployeePage() {
-  const [selectedOption, setSelectedOption] = useState("Tasks");
-  const sidebarOptions = {
-    Tasks: <LiaTasksSolid />,
-    Learning: <PiBooksDuotone />,
-    "View Performance": <CgPerformance />,
-    "Apply Promotion": <TbConePlus />,
-    Applications: <MdContactPage />,
-  };
+function EmployeePage({ setDisplayPage }) {
+  const [employeeDetails, setEmployeeDetails] = useState(null);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [trainings, setTrainings] = useState([]);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (user) {
+      getDocsFromDb("Users").then((users) => {
+        const userDetails = users.find((u) => u.id === user.uid);
+        setEmployeeDetails(userDetails);
+      });
+
+      getDocsFromDb("Feedbacks").then((feedbackList) => {
+        const userFeedbacks = feedbackList.filter(
+          (feedback) => feedback.UserID === user.uid
+        );
+        setFeedbacks(userFeedbacks);
+      });
+
+      getDocsFromDb("Trainings").then((trainingList) => {
+        const userTrainings = trainingList.filter((training) =>
+          training.AssignedEmployees.includes(user.uid)
+        );
+        setTrainings(userTrainings);
+      });
+    }
+  }, []);
+
+  if (!employeeDetails) {
+    return <Text>Loading...</Text>;
+  }
 
   return (
-    <Flex height="100%" width="100%">
-      <Sidebar sidebarOptions={sidebarOptions} selectedOption={selectedOption} setSelectedOption={setSelectedOption} />
-      <Box
-        height="96%"
-        width="79%"
-        margin="auto"
-        boxShadow="2xl"
-        borderRadius="lg"
+    <>
+      <Button
+        variant="ghost"
+        position="absolute"
+        top="1rem"
+        left="1rem"
+        zIndex="max"
+        scale="1.5"
+        onClick={() => setDisplayPage("Login")}
       >
-        {selectedOption === "Tasks" && <Tasks />}
-      </Box>
-    </Flex>
-  );
-
-  function Tasks() {
-    function progressIcons(status) {
-      switch (status) {
-        case "In Progress":
-          return (
-            <Icon fontSize="2xl" color="fg.info">
-              <LuCircleFadingArrowUp />
-            </Icon>
-          );
-        case "Not Started":
-          return (
-            <Icon fontSize="2xl" color="fg.error">
-              <LuCircleSlash />
-            </Icon>
-          );
-        case "Pending":
-          return (
-            <Icon fontSize="2xl" color="fg.warning">
-              <LuCircleDashed />
-            </Icon>
-          );
-        case "Completed":
-          return (
-            <Icon fontSize="2xl" color="fg.success">
-              <LuCircleCheckBig />
-            </Icon>
-          );
-      }
-    }
-
-    return (
-      <Container height="100%" width="100%">
-        <Flex direction="column" gap="1rem">
-          <Flex bg="bg.emphasized" justify="space-around" alignItems="center">
-            <Button variant="outline">Filter</Button>
-            <Button variant="outline">
-              <CiBoxList />
-            </Button>
-            <Button variant="outline">
-              <RxShare2 />
-            </Button>
-          </Flex>
-          <Table.Root striped fontSize="1.1rem">
-            <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeader>Status</Table.ColumnHeader>
-                <Table.ColumnHeader>Title</Table.ColumnHeader>
-                <Table.ColumnHeader>Description</Table.ColumnHeader>
-                <Table.ColumnHeader>Department</Table.ColumnHeader>
-                <Table.ColumnHeader>Due Date</Table.ColumnHeader>
-                <Table.ColumnHeader>Priority</Table.ColumnHeader>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {taskData.map(
-                ({
-                  taskId,
-                  title,
-                  description,
-                  dueDate,
-                  priority,
-                  status,
-                  department,
-                }) => (
-                  <Table.Row>
-                    <Table.Cell>
-                      {progressIcons(status)} {status}{" "}
-                    </Table.Cell>
-                    <Table.Cell>{title}</Table.Cell>
-                    <Table.Cell>{description}</Table.Cell>
-                    <Table.Cell>{department}</Table.Cell>
-                    <Table.Cell>{dueDate}</Table.Cell>
-                    <Table.Cell>{priority}</Table.Cell>
-                  </Table.Row>
-                )
-              )}
-            </Table.Body>
-          </Table.Root>
-          <Text bg="bg.emphasized" padding=".5rem 1rem">
-            21 Rows Remaining
-          </Text>
-        </Flex>
+        <ArrowLeft />
+      </Button>
+      <Container height="100vh" width="100vw" padding="2rem" overflow="auto">
+        <Container maxW="full" width="100%" overflow="auto">
+          <Stack spacing={6} width="100%">
+            <Flex justify="space-between" align="center">
+              <Text textStyle="2xl" fontWeight="bold">
+                Employee Dashboard
+              </Text>
+            </Flex>
+            <EmployeeDetails details={employeeDetails} />
+            <Separator />
+            <FeedbackListings feedbacks={feedbacks} />
+            <Separator />
+            <TrainingListings trainings={trainings} />
+          </Stack>
+        </Container>
       </Container>
-    );
-  }
+    </>
+  );
+}
+
+function EmployeeDetails({ details }) {
+  return (
+    <Box p={4} boxShadow="md" borderRadius="lg">
+      <Heading size="md">Employee Details</Heading>
+      <Stack spacing={4} mt={4}>
+        <Flex align="center">
+          <LuUser />
+          <Text ml={2}>{details.Name}</Text>
+        </Flex>
+        <Flex align="center">
+          <LuMail />
+          <Text ml={2}>{details.Email}</Text>
+        </Flex>
+        <Flex align="center">
+          <LuBriefcase />
+          <Text ml={2}>{details.Position}</Text>
+        </Flex>
+      </Stack>
+    </Box>
+  );
+}
+
+function FeedbackListings({ feedbacks }) {
+  return (
+    <Box p={4} boxShadow="md" borderRadius="lg">
+      <Heading size="md">Feedback</Heading>
+      <Stack spacing={4} mt={4}>
+        {feedbacks.map((feedback) => (
+          <Box key={feedback.id} p={4} boxShadow="md" borderRadius="lg">
+            <Text fontWeight="bold">{feedback.Title}</Text>
+            <Text>{feedback.Description}</Text>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+function TrainingListings({ trainings }) {
+  return (
+    <Box p={4} boxShadow="md" borderRadius="lg">
+      <Heading size="md">Assigned Trainings</Heading>
+      <Stack spacing={4} mt={4}>
+        {trainings.map((training) => (
+          <Box key={training.id} p={4} boxShadow="md" borderRadius="lg">
+            <Text fontWeight="bold">{training.Title}</Text>
+            <Text>{training.Description}</Text>
+            <HStack mt={4} spacing={4}>
+              <ResourceDialog resources={training.Resources} />
+            </HStack>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+function ResourceDialog({ resources }) {
+  const [dialogTrigger, setDialogTrigger] = useState(false);
+
+  return (
+    <DialogRoot
+      open={dialogTrigger}
+      onOpenChange={(e) => setDialogTrigger(e.open)}
+    >
+      <DialogTrigger asChild>
+        <Button variant="outline" leftIcon={<LuBookOpen />}>
+          View Resources
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Resources</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Stack spacing={4}>
+            {resources.map((resource, index) => (
+              <Box key={index}>
+                {resource.includes("http") ? (
+                  <Link href={resource} isExternal color="blue.500">
+                    {resource}
+                  </Link>
+                ) : (
+                  <Text>{resource}</Text>
+                )}
+              </Box>
+            ))}
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <DialogActionTrigger asChild>
+            <Button variant="outline" onClick={() => setDialogTrigger(false)}>
+              Close
+            </Button>
+          </DialogActionTrigger>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </DialogContent>
+    </DialogRoot>
+  );
 }
 
 export default EmployeePage;

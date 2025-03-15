@@ -8,7 +8,10 @@ import {
   getFirestore,
   query,
   setDoc,
+  updateDoc,
+  arrayRemove,
   where,
+  deleteDoc,
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
@@ -95,8 +98,6 @@ async function signInUser(email, password, role) {
   }
 }
 
-// createNewUser("joelrai910@gmail.com", "rememberme?", "Upper Management");
-
 async function getDocsFromDb(collectionName) {
   const q = query(collection(myDb, collectionName));
   const querySnapshot = await getDocs(q);
@@ -104,7 +105,7 @@ async function getDocsFromDb(collectionName) {
   const jobListings = [];
 
   querySnapshot.forEach((doc) => {
-    jobListings.push(doc.data());
+    jobListings.push({ id: doc.id, ...doc.data() });
   });
 
   return jobListings;
@@ -115,4 +116,73 @@ async function addDocsToDb(collectionName, data) {
   console.log("Document written with ID: ", docRef.id);
   return docRef.id;
 }
-export { createNewUser, signInUser, getDocsFromDb, addDocsToDb };
+
+async function updateDocInDb(collectionName, docId, data) {
+  const docRef = doc(myDb, collectionName, docId);
+  await updateDoc(docRef, data);
+}
+
+async function deleteDocFromDb(collectionName, docId) {
+  const docRef = doc(myDb, collectionName, docId);
+  await deleteDoc(docRef);
+}
+
+async function updateJobApplication(jobId, applicationId, status) {
+  const jobRef = doc(myDb, "JobListings", jobId);
+  await updateDoc(jobRef, {
+    Applications: arrayRemove(applicationId),
+  });
+
+  const applicationRef = doc(myDb, "JobApplications", applicationId);
+  await updateDoc(applicationRef, {
+    Status: status,
+  });
+}
+
+async function getRandomUsers(count) {
+  const users = await getDocsFromDb("Users");
+  const shuffled = users.sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}
+
+async function createJobWithApplications(jobData) {
+  // Create the job first
+  const jobId = await addDocsToDb("JobListings", {
+    ...jobData,
+    Applications: [],
+  });
+
+  // Get 3-7 random users
+  const randomCount = Math.floor(Math.random() * 5) + 3;
+  const applicants = await getRandomUsers(randomCount);
+  const applicationIds = [];
+
+  // Create applications for each random user
+  for (const user of applicants) {
+    const applicationId = await addDocsToDb("JobApplications", {
+      UserID: user.id,
+      JobID: jobId,
+      Status: "Pending",
+    });
+    applicationIds.push(applicationId);
+  }
+
+  // Update job with application IDs
+  const jobRef = doc(myDb, "JobListings", jobId);
+  await updateDoc(jobRef, {
+    Applications: applicationIds,
+  });
+
+  return jobId;
+}
+
+export {
+  createNewUser,
+  signInUser,
+  getDocsFromDb,
+  addDocsToDb,
+  updateDocInDb,
+  deleteDocFromDb,
+  updateJobApplication,
+  createJobWithApplications,
+};

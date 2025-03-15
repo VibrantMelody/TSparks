@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Text,
   Box,
@@ -9,6 +9,8 @@ import {
   HStack,
   Stack,
   Separator,
+  Heading,
+  DialogRoot,
 } from "@chakra-ui/react";
 import {
   LuUser,
@@ -19,8 +21,17 @@ import {
   LuPlus,
   LuSearch,
   LuMessageSquare,
+  LuTrash2,
+  LuLogOut,
 } from "react-icons/lu";
-import { addDocsToDb, getDocsFromDb } from "../firebase";
+import {
+  addDocsToDb,
+  getDocsFromDb,
+  updateDocInDb,
+  deleteDocFromDb,
+  updateJobApplication,
+  createJobWithApplications,
+} from "../firebase";
 import {
   DialogActionTrigger,
   DialogBody,
@@ -28,100 +39,96 @@ import {
   DialogContent,
   DialogFooter,
   DialogHeader,
-  DialogRoot,
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
 import { SegmentedControl } from "../components/ui/segmented-control";
 import { InputGroup } from "../components/ui/input-group";
+import { ArrowLeft, CornerDownLeft } from "lucide-react";
 
-function HRPage() {
+function HRPage({ setDisplayPage }) {
   const [jobs, setJobs] = useState([]);
-  const [newJob, setNewJob] = useState({
-    Title: "",
-    Department: "",
-    Location: "",
-    Description: "",
-    Requirements: "",
-  });
+  const [applications, setApplications] = useState([]);
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [dialogTrigger, setDialogTrigger] = useState(false);
-  const [activeView, setActiveView] = useState("Listings");
 
-  useEffect(() => {
-    getDocsFromDb("JobListings").then((jobListings) => {
-      setJobs(jobListings);
-    });
+  const refreshData = useCallback(async () => {
+    const jobListings = await getDocsFromDb("JobListings");
+    setJobs(jobListings);
+
+    const jobApplications = await getDocsFromDb("JobApplications");
+    setApplications(jobApplications);
+
+    const userList = await getDocsFromDb("Users");
+    setUsers(userList);
   }, []);
 
-  const handleCreateJob = () => {
-    addDocsToDb("JobListings", {
-      ...newJob,
-      Status: "Active",
-      Applications: 0,
-      Requirements: newJob.requirements.split("\n"),
-      Applicants: [],
-    });
-    setNewJob({
-      Title: "",
-      Department: "",
-      Location: "",
-      Description: "",
-      Requirements: "",
-    });
-    setDialogTrigger(false);
-  };
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   return (
-    <Container height="100vh" width="100vw" padding="2rem">
-      <Container maxW="full">
-        <Stack spacing={6} width="100%">
-          <Flex justify="space-between" align="center">
-            <Text textStyle="2xl" fontWeight="bold">
-              HR Dashboard
-            </Text>
-            <JobDialog
-              dialogTrigger={dialogTrigger}
-              setDialogTrigger={setDialogTrigger}
-              newJob={newJob}
-              setNewJob={setNewJob}
-              handleCreateJob={handleCreateJob}
+    <>
+      <Button
+        variant="ghost"
+        position="absolute"
+        top="1rem"
+        left="1rem"
+        zIndex="max"
+        scale="1.5"
+        onClick={() => setDisplayPage("Login")}
+      >
+        <ArrowLeft />
+      </Button>
+      <Container height="100vh" width="100vw" padding="2rem" overflow="auto">
+        <Container maxW="full" width="100%" overflow="auto">
+          <Stack spacing={6} width="100%">
+            <Flex justify="space-between" align="center">
+              <Text textStyle="2xl" fontWeight="bold">
+                HR Dashboard
+              </Text>
+              <JobDialog refreshData={refreshData} />
+            </Flex>
+            <JobStats jobs={jobs} users={users} refreshData={refreshData} />
+            <JobSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+            <Separator />
+            <Listings
+              jobs={jobs}
+              applications={applications}
+              users={users}
+              searchTerm={searchTerm}
+              refreshData={refreshData}
             />
-          </Flex>
-
-          <JobStats jobs={jobs} />
-
-          <JobSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-
-          <SegmentedControl
-            cursor="pointer"
-            size="md"
-            defaultValue={activeView}
-            value={activeView}
-            onValueChange={(e) => setActiveView(e.value)}
-            items={["Listings", "Applications", "Communications"]}
-          />
-
-          <Separator />
-
-          {activeView === "Listings" && (
-            <Listings jobs={jobs} searchTerm={searchTerm} />
-          )}
-          {activeView === "Applications" && <Applications jobs={jobs} />}
-          {activeView === "Communications" && <Communications jobs={jobs} />}
-        </Stack>
+          </Stack>
+        </Container>
       </Container>
-    </Container>
+    </>
   );
 }
 
-function JobDialog({
-  dialogTrigger,
-  setDialogTrigger,
-  newJob,
-  setNewJob,
-  handleCreateJob,
-}) {
+function JobDialog({ refreshData }) {
+  const [dialogTrigger, setDialogTrigger] = useState(false);
+
+  const [title, setTitle] = useState("");
+  const [department, setDepartment] = useState("");
+  const [location, setLocation] = useState("");
+  const [description, setDescription] = useState("");
+  const [requirements, setRequirements] = useState([]);
+
+  const handleCreateJob = async () => {
+    await createJobWithApplications({
+      Title: title,
+      Department: department,
+      Location: location,
+      Description: description,
+      Requirements: requirements,
+      Status: "Active",
+    });
+
+    await refreshData();
+    setDialogTrigger(false);
+  };
+
   return (
     <DialogRoot
       open={dialogTrigger}
@@ -139,46 +146,36 @@ function JobDialog({
             <InputGroup startElement={<LuUser />}>
               <Input
                 placeholder="Job Title"
-                value={newJob.Title}
-                onChange={(e) =>
-                  setNewJob({ ...newJob, Title: e.target.value })
-                }
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </InputGroup>
             <InputGroup startElement={<LuBuilding2 />}>
               <Input
                 placeholder="Department"
-                value={newJob.Department}
-                onChange={(e) =>
-                  setNewJob({ ...newJob, Department: e.target.value })
-                }
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
               />
             </InputGroup>
             <InputGroup startElement={<LuBuilding2 />}>
               <Input
                 placeholder="Location"
-                value={newJob.Location}
-                onChange={(e) =>
-                  setNewJob({ ...newJob, Location: e.target.value })
-                }
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
               />
             </InputGroup>
             <InputGroup startElement={<LuFileText />}>
               <Input
                 placeholder="Description"
-                value={newJob.Description}
-                onChange={(e) =>
-                  setNewJob({ ...newJob, Description: e.target.value })
-                }
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             </InputGroup>
             <InputGroup startElement={<LuFileText />}>
               <Input
                 placeholder="Requirements (comma separated)"
-                value={newJob.Requirements}
-                onChange={(e) =>
-                  setNewJob({ ...newJob, Requirements: e.target.value })
-                }
+                value={requirements}
+                onChange={(e) => setRequirements(e.target.value.split(","))}
               />
             </InputGroup>
           </Stack>
@@ -192,7 +189,9 @@ function JobDialog({
   );
 }
 
-function JobStats({ jobs }) {
+function JobStats({ jobs, users, refreshData }) {
+  const [employeeDialogTrigger, setEmployeeDialogTrigger] = useState(false);
+
   return (
     <Flex gap={4}>
       <Box p={4} boxShadow="md" borderRadius="lg" flex={1}>
@@ -224,7 +223,195 @@ function JobStats({ jobs }) {
           {new Set(jobs.map((job) => job.Department)).size}
         </Text>
       </Box>
+
+      <Box p={4} boxShadow="md" borderRadius="lg" flex={1}>
+        <Flex align="center" gap={2}>
+          <LuUser />
+          <Text fontWeight="bold">Employees</Text>
+        </Flex>
+        <Text fontSize="2xl" fontWeight="bold" mt={2}>
+          {users.length}
+        </Text>
+        <Button
+          variant="outline"
+          mt={4}
+          onClick={() => setEmployeeDialogTrigger(true)}
+        >
+          View Employees
+        </Button>
+      </Box>
+
+      <EmployeeDialog
+        users={users}
+        dialogTrigger={employeeDialogTrigger}
+        setDialogTrigger={setEmployeeDialogTrigger}
+        refreshData={refreshData}
+      />
     </Flex>
+  );
+}
+
+function EmployeeDialog({
+  users,
+  dialogTrigger,
+  setDialogTrigger,
+  refreshData,
+}) {
+  const [feedbackDialogTrigger, setFeedbackDialogTrigger] = useState(false);
+  const [infoDialogTrigger, setInfoDialogTrigger] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  const handleGiveFeedback = (user) => {
+    setSelectedUser(user);
+    setFeedbackDialogTrigger(true);
+  };
+
+  const handleViewInfo = (user) => {
+    setSelectedUser(user);
+    setInfoDialogTrigger(true);
+  };
+
+  return (
+    <DialogRoot
+      open={dialogTrigger}
+      onOpenChange={(e) => setDialogTrigger(e.open)}
+      size="cover"
+      scrollBehavior="inside"
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Employees</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Stack spacing={4}>
+            {users.map((user, index) => (
+              <Flex key={index} justify="space-between" align="center">
+                <Text>{user.Name}</Text>
+                <Text color="blue.fg">{user.Email}</Text>
+                <HStack spacing={2}>
+                  <Button
+                    variant="outline"
+                    leftIcon={<LuMessageSquare />}
+                    onClick={() => handleGiveFeedback(user)}
+                  >
+                    Give Feedback
+                  </Button>
+                  <Button
+                    variant="outline"
+                    leftIcon={<LuUser />}
+                    onClick={() => handleViewInfo(user)}
+                  >
+                    View Info
+                  </Button>
+                </HStack>
+              </Flex>
+            ))}
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <DialogActionTrigger asChild>
+            <Button variant="outline" onClick={() => setDialogTrigger(false)}>
+              Close
+            </Button>
+          </DialogActionTrigger>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </DialogContent>
+
+      <FeedbackDialog
+        user={selectedUser}
+        dialogTrigger={feedbackDialogTrigger}
+        setDialogTrigger={setFeedbackDialogTrigger}
+        refreshData={refreshData}
+      />
+
+      <InfoDialog
+        user={selectedUser}
+        dialogTrigger={infoDialogTrigger}
+        setDialogTrigger={setInfoDialogTrigger}
+      />
+    </DialogRoot>
+  );
+}
+
+function FeedbackDialog({
+  user,
+  dialogTrigger,
+  setDialogTrigger,
+  refreshData,
+}) {
+  const [description, setDescription] = useState("");
+
+  const handleCreateFeedback = async () => {
+    await updateDocInDb("Users", user.id, {
+      Feedback: description,
+    });
+
+    await refreshData();
+    setDialogTrigger(false);
+  };
+
+  return (
+    <DialogRoot
+      open={dialogTrigger}
+      onOpenChange={(e) => setDialogTrigger(e.open)}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Give Feedback to {user?.Name}</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Stack spacing={4}>
+            <InputGroup startElement={<LuMessageSquare />}>
+              <Input
+                placeholder="Description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </InputGroup>
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={handleCreateFeedback}>Create Feedback</Button>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </DialogContent>
+    </DialogRoot>
+  );
+}
+
+function InfoDialog({ user, dialogTrigger, setDialogTrigger }) {
+  return (
+    <DialogRoot
+      open={dialogTrigger}
+      onOpenChange={(e) => setDialogTrigger(e.open)}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Employee Info</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Stack spacing={4}>
+            <Text>Name: {user?.Name}</Text>
+            <Text>Email: {user?.Email}</Text>
+            <Text>Position: {user?.Position}</Text>
+            <Text>Feedback: {user?.Feedback}</Text>
+            <Text>Certifications: {user?.Certifications.join(", ")}</Text>
+            <Text>Roles: {user?.Role}</Text>
+            <Text>Years of Experience: {user?.YearsOfExperience}</Text>
+            <Text>Availability: {user?.Availability.Status}</Text>
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <DialogActionTrigger asChild>
+            <Button variant="outline" onClick={() => setDialogTrigger(false)}>
+              Close
+            </Button>
+          </DialogActionTrigger>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </DialogContent>
+    </DialogRoot>
   );
 }
 
@@ -240,7 +427,12 @@ function JobSearch({ searchTerm, setSearchTerm }) {
   );
 }
 
-function Listings({ jobs, searchTerm }) {
+function Listings({ jobs, applications, users, searchTerm, refreshData }) {
+  const handleDeleteJob = async (jobId) => {
+    await deleteDocFromDb("JobListings", jobId);
+    await refreshData();
+  };
+
   return (
     <Stack spacing={4}>
       {jobs
@@ -250,7 +442,7 @@ function Listings({ jobs, searchTerm }) {
             job.Department.toLowerCase().includes(searchTerm.toLowerCase())
         )
         .map((job) => (
-          <Box key={job.Id} p={4} boxShadow="md" borderRadius="lg">
+          <Box key={job.id} p={4} boxShadow="md" borderRadius="lg">
             <Flex justify="space-between" align="start">
               <Box>
                 <Text fontWeight="bold">{job.Title}</Text>
@@ -259,19 +451,31 @@ function Listings({ jobs, searchTerm }) {
                 </Text>
               </Box>
               <Text color={job.Status === "Active" ? "green.500" : "gray.500"}>
-                {job.status}
+                {job.Status}
               </Text>
             </Flex>
-            <Text mt={4}>{job.description}</Text>
+            <Text mt={4}>{job.Description}</Text>
             <HStack mt={4} spacing={4}>
-              <Button variant="outline" leftIcon={<LuUsers />}>
-                {job.Applications.length} Applications
-              </Button>
-              <Button variant="outline" leftIcon={<LuMail />}>
+              <ApplicantDialog
+                job={job}
+                applications={applications}
+                users={users}
+                refreshData={refreshData}
+              />
+              <Button
+                variant="outline"
+                leftIcon={<LuMail />}
+                onClick={() => handleEmailCandidates(job, users, applications)}
+              >
                 Email Candidates
               </Button>
-              <Button variant="outline" leftIcon={<LuMessageSquare />}>
-                Send Update
+              <Button
+                variant="outline"
+                colorPalette="red"
+                leftIcon={<LuTrash2 />}
+                onClick={() => handleDeleteJob(job.id)}
+              >
+                Delete Job
               </Button>
             </HStack>
           </Box>
@@ -280,62 +484,107 @@ function Listings({ jobs, searchTerm }) {
   );
 }
 
-function Applications({ jobs }) {
+function handleEmailCandidates(job, users, applications) {
+  const usersList = [];
+  const jobApplications = job.Applications;
+  jobApplications.forEach((applicationId) => {
+    applications.forEach((app) => {
+      if (app.id === applicationId) {
+        users.forEach((user) => {
+          if (user.id === app.UserID) {
+            usersList.push(user);
+          }
+        });
+      }
+    });
+  });
+
+  const emailAddresses = usersList.map((user) => user.Email).join(",");
+  const mailtoLink = `mailto:${emailAddresses}`;
+  window.location.href = mailtoLink;
+}
+
+function ApplicantDialog({ job, applications, users, refreshData }) {
+  const usersList = [];
+  const jobApplications = job.Applications;
+  jobApplications.forEach((applicationId) => {
+    applications.forEach((app) => {
+      if (app.id === applicationId) {
+        users.forEach((user) => {
+          if (user.id === app.UserID) {
+            usersList.push({ ...user, applicationId: app.id });
+          }
+        });
+      }
+    });
+  });
+
+  const handleApplicationStatus = async (applicationId, status) => {
+    await updateJobApplication(job.id, applicationId, status);
+    await refreshData();
+  };
+
   return (
-    <Stack spacing={4}>
-      {jobs.map((job) => (
-        <Box key={job.id} p={4} boxShadow="md" borderRadius="lg">
-          <Text fontWeight="bold" mb={2}>
-            {job.Title}
-          </Text>
-          <Stack spacing={2}>
-            {job.Applicants.map((applicant) => (
+    <DialogRoot
+      placement="center"
+      size="cover"
+      scrollBehavior="inside"
+      motionPreset="slide-in-top"
+    >
+      <DialogTrigger asChild>
+        <Button variant="outline" leftIcon={<LuUsers />}>
+          {job.Applications.length} Applications
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Applicants</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Stack spacing={4} width="full">
+            {usersList.map((user) => (
               <Flex
-                key={Applicant.id}
-                justify="space-between"
-                align="center"
-                p={2}
-                bg="gray.50"
-                borderRadius="md"
+                direction="column"
+                gap="2"
+                boxShadow="lg"
+                p="4"
+                key={user.id}
               >
-                <Text>{applicant.name}</Text>
-                <HStack>
-                  <Text color="gray.500">{applicant.status}</Text>
-                  <Button size="sm" variant="ghost">
-                    Review
+                <Heading>{user.Name}</Heading>
+                <Text color="blue.fg">{user.Email}</Text>
+                <Text fontWeight="bold">{user.Certifications}</Text>
+                <HStack spacing="4">
+                  <Button
+                    colorPalette="green"
+                    alignSelf="end"
+                    onClick={() =>
+                      handleApplicationStatus(user.applicationId, "Accepted")
+                    }
+                  >
+                    Accept
+                  </Button>
+                  <Button
+                    colorPalette="red"
+                    alignSelf="end"
+                    onClick={() =>
+                      handleApplicationStatus(user.applicationId, "Rejected")
+                    }
+                  >
+                    Reject
                   </Button>
                 </HStack>
               </Flex>
             ))}
           </Stack>
-        </Box>
-      ))}
-    </Stack>
-  );
-}
-
-function Communications({ jobs }) {
-  return (
-    <Stack spacing={4}>
-      <Button leftIcon={<LuMail />}>Send Bulk Update</Button>
-      <Stack spacing={2}>
-        {jobs.map((job) => (
-          <Box key={job.id} p={4} boxShadow="md" borderRadius="lg">
-            <Text fontWeight="bold" mb={2}>
-              {job.Title}
-            </Text>
-            <HStack>
-              <Button size="sm" variant="outline">
-                Send Interview Invites
-              </Button>
-              <Button size="sm" variant="outline">
-                Request Additional Info
-              </Button>
-            </HStack>
-          </Box>
-        ))}
-      </Stack>
-    </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <DialogActionTrigger asChild>
+            <Button colorPalette="red">Close</Button>
+          </DialogActionTrigger>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </DialogContent>
+    </DialogRoot>
   );
 }
 
