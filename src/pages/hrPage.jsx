@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import WorkforceAnalytics from "./dataPage";
+import logo from "../assets/images/logo/tsparks-high-resolution-logo-transparent.png";
 import {
   Text,
   Box,
@@ -11,6 +13,13 @@ import {
   Separator,
   Heading,
   DialogRoot,
+  Image,
+  VStack,
+  CheckboxCard,
+  Grid,
+  StackSeparator,
+  Alert,
+  Badge,
 } from "@chakra-ui/react";
 import {
   LuUser,
@@ -42,11 +51,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
-import { SegmentedControl } from "../components/ui/segmented-control";
+import {
+  Award,
+  ChartBar,
+  Earth,
+  LayoutDashboard,
+  ListTodo,
+  LogOut,
+  Ribbon,
+  Send,
+  Sparkle,
+  SquarePen,
+  UserRoundCog,
+  Users,
+} from "lucide-react";
+import { toaster } from "../components/ui/toaster";
 import { InputGroup } from "../components/ui/input-group";
-import { ArrowLeft, CornerDownLeft } from "lucide-react";
 
-function HRPage({ setDisplayPage }) {
+function HRPage({ setDisplayPage, user }) {
+  const [sidebarSelected, setSidebarSelected] = useState("Dashboard");
+
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [users, setUsers] = useState([]);
@@ -68,41 +92,399 @@ function HRPage({ setDisplayPage }) {
   }, [refreshData]);
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        position="absolute"
-        top="1rem"
-        left="1rem"
-        zIndex="max"
-        scale="1.5"
-        onClick={() => setDisplayPage("Login")}
+    <Box
+      width="100vw"
+      height="100vh"
+      display="flex"
+      justifyContent="space-between"
+      alignItems="center"
+      backgroundColor="gray.950"
+      overflow="hidden"
+    >
+      <Sidebar
+        sidebarSelected={sidebarSelected}
+        setSidebarSelected={setSidebarSelected}
+        setDisplayPage={setDisplayPage}
+      />
+      <Container
+        padding="2rem"
+        width="78%"
+        height="98%"
+        overflow="auto"
+        backgroundColor="bg"
+        borderRadius="lg"
       >
-        <ArrowLeft />
-      </Button>
-      <Container height="100vh" width="100vw" padding="2rem" overflow="auto">
-        <Container maxW="full" width="100%" overflow="auto">
-          <Stack spacing={6} width="100%">
-            <Flex justify="space-between" align="center">
-              <Text textStyle="2xl" fontWeight="bold">
-                HR Dashboard
-              </Text>
-              <JobDialog refreshData={refreshData} />
-            </Flex>
-            <JobStats jobs={jobs} users={users} refreshData={refreshData} />
-            <JobSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-            <Separator />
-            <Listings
-              jobs={jobs}
-              applications={applications}
-              users={users}
-              searchTerm={searchTerm}
-              refreshData={refreshData}
-            />
-          </Stack>
-        </Container>
+        {sidebarSelected === "Dashboard" && (
+          <Dashboard
+            user={user}
+            jobs={jobs}
+            users={users}
+            refreshData={refreshData}
+          />
+        )}
+        {sidebarSelected === "Job Listings" && (
+          <JobListings
+            jobs={jobs}
+            applications={applications}
+            users={users}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            refreshData={refreshData}
+          />
+        )}
+        {sidebarSelected === "Promotions" && (
+          <Employees
+            users={users}
+            applications={applications}
+            jobs={jobs}
+            refreshData={refreshData}
+          />
+        )}
+
+        {sidebarSelected === "HR Analytics Data" && (
+          <WorkforceAnalytics data={users} />
+        )}
+        {sidebarSelected === "Messages" && (
+          <Messages user={user} users={users} />
+        )}
       </Container>
-    </>
+    </Box>
+  );
+}
+
+function Sidebar({ sidebarSelected, setSidebarSelected, setDisplayPage }) {
+  const buttons = [
+    { label: "Dashboard", icon: <LayoutDashboard /> },
+    { label: "Job Listings", icon: <ListTodo /> },
+    { label: "Promotions", icon: <Users /> },
+    { label: "HR Analytics Data", icon: <ChartBar /> },
+    { label: "Messages", icon: <Send /> },
+  ];
+
+  return (
+    <Container
+      width="20%"
+      height="100%"
+      padding="2rem"
+      display="flex"
+      flexDirection="column"
+      justifyContent="start"
+      gap="1rem"
+      borderRadius="lg"
+    >
+      <Image src={logo} width="30%" alignSelf="center" paddingBottom="1rem" />
+      {buttons.map((button) => (
+        <Button
+          key={button.label}
+          variant="subtle"
+          size="xl"
+          onClick={() => setSidebarSelected(button.label)}
+          backgroundColor={
+            sidebarSelected === button.label ? "yellow.focusRing" : ""
+          }
+        >
+          {button.icon}
+          {button.label}
+        </Button>
+      ))}
+      <Button
+        variant="subtle"
+        colorPalette="red"
+        onClick={() => setDisplayPage({ page: "Login", user: "" })}
+      >
+        <LogOut />
+        Logout
+      </Button>
+    </Container>
+  );
+}
+
+function Dashboard({ user, jobs, users, refreshData }) {
+  return (
+    <VStack gap="2rem">
+      <Text textStyle="2xl" fontWeight="bold">
+        Welcome {user.toUpperCase()}
+      </Text>
+      <JobDialog refreshData={refreshData} />
+      <JobStats jobs={jobs} users={users} refreshData={refreshData} />
+    </VStack>
+  );
+}
+
+function JobListings({
+  jobs,
+  applications,
+  users,
+  searchTerm,
+  setSearchTerm,
+  refreshData,
+}) {
+  return (
+    <Stack spacing={6} width="100%">
+      <JobSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+      <Separator />
+      <Listings
+        jobs={jobs}
+        applications={applications}
+        users={users}
+        searchTerm={searchTerm}
+        refreshData={refreshData}
+      />
+    </Stack>
+  );
+}
+
+function Employees({ users, applications, jobs, refreshData }) {
+  function findAppliedJob(applicationID) {
+    const application = applications.find((app) => app.id === applicationID);
+    if (!application) return "Unknown Job";
+
+    const job = jobs.find((job) => job.id === application.JobID);
+    return job ? job.Title : "Unknown Job";
+  }
+
+  async function handlePromotion(user) {
+    try {
+      await updateDocInDb("Users", user.id, {
+        isPromoted: true,
+      });
+
+      await refreshData();
+      console.log("Promotion successful");
+      toaster.create({
+        description: "Promotion successful",
+        type: "info",
+      });
+    } catch (error) {
+      console.error(error);
+      toaster.create({
+        description: "Promotion unsuccessful",
+        type: "error",
+      });
+    }
+  }
+
+  return (
+    <Grid gridTemplateColumns="repeat(3, 1fr)" gridGap="4" width="100%">
+      {users
+        .filter((user) => user.CurrentJobApplications.length > 0)
+        .map((user) => (
+          <VStack key={user.id} boxShadow="md" padding={4} borderRadius="10px">
+            <VStack gap="0">
+              <Text fontWeight="bold">{user.Name}</Text>
+              <Text color="gray.600" fontSize="sm">
+                {user.Email}
+              </Text>
+              <Text
+                color="gray.600"
+                fontSize="sm"
+                fontWeight="semibold"
+                paddingBottom="2"
+              >
+                {user.JobTitle} • {user.Location}
+              </Text>
+              <Text color="fg.info" fontSize="sm" fontWeight="semibold">
+                Applied at: {findAppliedJob(user.CurrentJobApplications[0])}
+              </Text>
+            </VStack>
+
+            <Container bg="bg.subtle" padding="2" borderRadius="10px">
+              <Text
+                fontSize="sm"
+                textAlign="center"
+                fontWeight="semibold"
+                paddingBottom="2"
+              >
+                Skills
+              </Text>
+              <VStack gap="2" separator={<StackSeparator />}>
+                {user.Skills.map((skill) => (
+                  <Text fontSize="sm">{skill}</Text>
+                ))}
+              </VStack>
+            </Container>
+
+            {user.Rating > 4 ? (
+              <HStack marginTop="auto">
+                <Alert.Root status="info">
+                  <Alert.Indicator />
+                  <Alert.Title>Recommended for promotion</Alert.Title>
+                </Alert.Root>
+                {!Object.keys(user).includes("isPromoted") ? (
+                  <Button onClick={() => handlePromotion(user)}>Promote</Button>
+                ) : (
+                  <Button disabled>Promoted</Button>
+                )}
+              </HStack>
+            ) : (
+              <Alert.Root status="error" marginTop="auto">
+                <Alert.Indicator />
+                <Alert.Title>Do not qualify for promotion</Alert.Title>
+              </Alert.Root>
+            )}
+          </VStack>
+        ))}
+    </Grid>
+  );
+}
+
+function Messages({ users, user }) {
+  const [userToMessage, setUserToMessage] = useState([]);
+  const [allMessages, setAllMessages] = useState([]);
+  const messageRef = useRef(null);
+  const [dialog, setDialog] = useState({
+    trigger: false,
+    message: "",
+  });
+
+  const usersList = users.map((user) => user.Name);
+
+  useEffect(() => {
+    getDocsFromDb("Messages").then((messages) => {
+      const filteredMessages = messages.filter(
+        (message) => message.Sender === user || message.Receiver.includes(user)
+      );
+      setAllMessages(filteredMessages);
+    });
+  }, [user]);
+
+  function handleUserCheckChanged(isChecked, user) {
+    if (isChecked) {
+      setUserToMessage([...userToMessage, user]);
+    } else {
+      setUserToMessage(userToMessage.filter((u) => u !== user));
+    }
+  }
+
+  async function handleMessageSend(message) {
+    try {
+      const messageRef = await addDocsToDb("Messages", {
+        Sender: user,
+        Receiver: userToMessage,
+        Message: message,
+      });
+
+      if (messageRef) {
+        setAllMessages((prevMessages) => [
+          ...prevMessages,
+          { Sender: user, Receiver: userToMessage, Message: message },
+        ]);
+
+        setDialog({
+          trigger: true,
+          message: "Message sent successfully",
+        });
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setDialog({
+        trigger: true,
+        message: "Failed to send message",
+      });
+    }
+  }
+
+  return (
+    <Container height="100%" width="100%">
+      <Dialog
+        button={
+          <Button>
+            <SquarePen />
+            Send Message
+          </Button>
+        }
+        title="Send Message"
+        body={
+          <Stack spacing={4}>
+            <Grid templateColumns="repeat(4, 1fr)" gap="1rem">
+              {usersList.map((user) => (
+                <CheckboxCard.Root
+                  key={user}
+                  onCheckedChange={(isChecked) =>
+                    handleUserCheckChanged(isChecked, user)
+                  }
+                >
+                  <CheckboxCard.HiddenInput />
+                  <CheckboxCard.Control>
+                    <CheckboxCard.Label>{user}</CheckboxCard.Label>
+                  </CheckboxCard.Control>
+                </CheckboxCard.Root>
+              ))}
+            </Grid>
+
+            <InputGroup startElement={<LuFileText />}>
+              <Input placeholder="Message" ref={messageRef} />
+            </InputGroup>
+          </Stack>
+        }
+        closeButton={
+          <DialogRoot
+            placement="center"
+            motionPreset="slide-in-bottom"
+            role="alertdialog"
+            open={dialog.trigger}
+          >
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  handleMessageSend(messageRef.current.value);
+                }}
+              >
+                Send
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle color="fg.warning">Info</DialogTitle>
+              </DialogHeader>
+              <DialogBody>
+                <p>{dialog.message}</p>
+              </DialogBody>
+              <DialogFooter>
+                <DialogActionTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => setDialog({ trigger: false, message: "" })}
+                  >
+                    Close
+                  </Button>
+                </DialogActionTrigger>
+              </DialogFooter>
+              <DialogCloseTrigger />
+            </DialogContent>
+          </DialogRoot>
+        }
+      />
+
+      <Container width="100%" marginTop="5rem" padding="1rem">
+        <Text>Conversations</Text>
+        {allMessages.map((message, index) => (
+          <Box key={index} p={4} boxShadow="md" borderRadius="lg">
+            <Text fontWeight="bold">From: {message.Sender}</Text>
+            <Text fontWeight="bold">To: {message.Receiver.join(", ")}</Text>
+            <Text>{message.Message}</Text>
+          </Box>
+        ))}
+      </Container>
+    </Container>
+  );
+}
+
+function Dialog({ button, title, body, closeButton }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <DialogRoot size="lg" open={open} onOpenChange={(e) => setOpen(e.open)}>
+      <DialogTrigger asChild>{button}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <DialogBody>{body}</DialogBody>
+        <DialogFooter>{closeButton}</DialogFooter>
+        <DialogCloseTrigger />
+      </DialogContent>
+    </DialogRoot>
   );
 }
 
@@ -271,23 +653,74 @@ function EmployeeDialog({
     setInfoDialogTrigger(true);
   };
 
+  const veteranExcellence = users.filter(
+    (user) => user.YearsOfExperience >= 10 && user.Rating === 5
+  );
+  const technicalWizard = users.filter((user) => user.Skills.length >= 4);
+  const certificationChampion = users.filter(
+    (user) => user.Certifications.length > 1
+  );
+  const risingStar = users.filter(
+    (user) => user.YearsOfExperience <= 5 && user.Rating >= 4
+  );
+  const remoteProfessional = users.filter(
+    (user) => user.Location === "Remote" && user.Rating >= 4
+  );
+
   return (
     <DialogRoot
       open={dialogTrigger}
       onOpenChange={(e) => setDialogTrigger(e.open)}
-      size="cover"
+      size="lg"
       scrollBehavior="inside"
+      motionPreset="slide-in-top"
     >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Employees</DialogTitle>
         </DialogHeader>
         <DialogBody>
-          <Stack spacing={4}>
+          <Stack spacing={4} separator={<StackSeparator />}>
             {users.map((user, index) => (
               <Flex key={index} justify="space-between" align="center">
-                <Text>{user.Name}</Text>
-                <Text color="blue.fg">{user.Email}</Text>
+                <VStack align="start">
+                  <Text fontWeight="semibold">{user.Name}</Text>
+                  <Text color="blue.fg">{user.Email}</Text>
+                  <HStack>
+                    {veteranExcellence.find((vet) => vet.id === user.id) !==
+                      undefined && (
+                      <Badge colorPalette="green">
+                        <Ribbon /> Veteran
+                      </Badge>
+                    )}
+                    {technicalWizard.find((wiz) => wiz.id === user.id) !==
+                      undefined && (
+                      <Badge colorPalette="blue">
+                        <UserRoundCog /> Technical Wizard
+                      </Badge>
+                    )}
+                    {certificationChampion.find((cer) => cer.id === user.id) !==
+                      undefined && (
+                      <Badge colorPalette="yellow">
+                        <Award />
+                        Certification Champion
+                      </Badge>
+                    )}
+                    {risingStar.find((str) => str.id === user.id) !==
+                      undefined && (
+                      <Badge colorPalette="pink">
+                        <Sparkle />
+                        Rising Star
+                      </Badge>
+                    )}
+                    {remoteProfessional.find((rem) => rem.id === user.id) !==
+                      undefined && (
+                      <Badge colorPalette="purple">
+                        <Earth /> Remote Professional
+                      </Badge>
+                    )}
+                  </HStack>
+                </VStack>
                 <HStack spacing={2}>
                   <Button
                     variant="outline"
@@ -555,7 +988,6 @@ function ApplicantDialog({ job, applications, users, refreshData }) {
                 <Text fontWeight="bold">{user.Certifications}</Text>
                 <HStack spacing="4">
                   <Button
-                    colorPalette="green"
                     alignSelf="end"
                     onClick={() =>
                       handleApplicationStatus(user.applicationId, "Accepted")

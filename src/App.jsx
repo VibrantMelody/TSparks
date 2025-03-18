@@ -1,29 +1,51 @@
 import { Box } from "@chakra-ui/react";
+import { Toaster, toaster } from "./components/ui/toaster";
 import { ColorModeButton } from "./components/ui/color-mode";
 import "./index.css";
 import { useState, lazy, Suspense } from "react";
 
-const LoginPage = lazy(() => import("./pages/loginPage.jsx"));
-const SignupPage = lazy(() => import("./pages/signupPage.jsx"));
-const HRPage = lazy(() => import("./pages/hrPage.jsx"));
-const ManagementPage = lazy(() => import("./pages/managementPage.jsx"));
-const EmployeePage = lazy(() => import("./pages/employeePage.jsx"));
+import LoginPage from "./pages/loginPage";
+import SignupPage from "./pages/signupPage";
+import HRPage from "./pages/hrPage";
+import ManagementPage from "./pages/managementPage";
+import EmployeePage from "./pages/employeePage";
+
+// const LoginPage = lazy(() => import("./pages/loginPage.jsx"));
+// const SignupPage = lazy(() => import("./pages/signupPage.jsx"));
+// const HRPage = lazy(() => import("./pages/hrPage.jsx"));
+// const ManagementPage = lazy(() => import("./pages/managementPage.jsx"));
+// const EmployeePage = lazy(() => import("./pages/employeePage.jsx"));
 
 function App() {
-  const [displayPage, setDisplayPage] = useState("Login");
+  const [displayPage, setDisplayPage] = useState({
+    page: "Login",
+    user: "",
+  });
 
   function showPage() {
-    switch (displayPage) {
+    switch (displayPage.page) {
       case "Login":
         return <LoginPage setDisplayPage={setDisplayPage} />;
       case "Employee":
-        return <EmployeePage setDisplayPage={setDisplayPage} />;
+        return (
+          <EmployeePage
+            setDisplayPage={setDisplayPage}
+            user={displayPage.user}
+          />
+        );
       case "SignUp":
         return <SignupPage setDisplayPage={setDisplayPage} />;
       case "HR Manager":
-        return <HRPage setDisplayPage={setDisplayPage} />;
+        return (
+          <HRPage setDisplayPage={setDisplayPage} user={displayPage.user} />
+        );
       case "Management":
-        return <ManagementPage setDisplayPage={setDisplayPage} />;
+        return (
+          <ManagementPage
+            setDisplayPage={setDisplayPage}
+            user={displayPage.user}
+          />
+        );
       default:
         return null;
     }
@@ -34,7 +56,9 @@ function App() {
       <Box position="absolute" zIndex="max" top="1rem" right="1rem">
         <ColorModeButton />
       </Box>
-      <Suspense fallback="....Loading">{showPage()}</Suspense>
+      {/* <Suspense fallback="Loading">{showPage()}</Suspense> */}
+      {showPage()}
+      <Toaster />
     </>
   );
 }

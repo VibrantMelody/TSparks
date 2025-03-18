@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import logo from "../assets/images/logo/tsparks-high-resolution-logo-transparent-black-text.png";
 import loginBackground from "../assets/images/wai-siew-HFau1CX6vsw-unsplash.jpg";
 import {
@@ -14,6 +14,9 @@ import {
   Separator,
   HStack,
   Stack,
+  Grid,
+  CheckboxCard,
+  RadioCard,
 } from "@chakra-ui/react";
 
 import {
@@ -38,7 +41,7 @@ import {
 } from "../components/ui/password-input";
 
 import { TbLockPassword } from "react-icons/tb";
-import { signInUser } from "../firebase";
+import { getDocsFromDb, signInUser } from "../firebase";
 function LoginPage({ setDisplayPage }) {
   return (
     <Flex height="100vh" width="100vw" position="relative">
@@ -79,24 +82,36 @@ function LoginPage({ setDisplayPage }) {
 
 function LoginSection({ setDisplayPage }) {
   const [selectedRole, setSelectedRole] = useState("Employee");
-  const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
-  const [dialogTrigger, setDialogTrigger] = useState(false);
+  const [userCredential, setuserCredential] = useState({
+    email: "",
+    password: "",
+  });
+  const [userSelectionDialog, setUserSelectionDialog] = useState(false);
+  const [dialog, setDialog] = useState({ trigger: false, message: "" });
+  const [users, setUsers] = useState([]);
+  const [choosenUser, setChoosenUser] = useState({});
+
+  useEffect(() => {
+    getDocsFromDb("Users").then((users) => {
+      setUsers(users);
+    });
+  }, []);
 
   async function handleSignIn() {
-    const signIn = await signInUser(email, password, selectedRole);
-    const status = signIn.status;
-    const message = signIn.message;
+    const signIn = await signInUser(
+      userCredential.email,
+      userCredential.password,
+      selectedRole,
+      setDialog
+    );
 
-    if (status == "success") {
-      setDisplayPage(selectedRole);
-    } else {
-      setDialogTrigger(true);
+    if (signIn.returnID === true) {
+      if (selectedRole === "Employee") {
+        setUserSelectionDialog(true);
+      } else {
+        setDisplayPage({ page: selectedRole, user: signIn.user });
+      }
     }
-  }
-
-  function handleRoleChange(role) {
-    setSelectedRole(role);
   }
 
   return (
@@ -117,7 +132,7 @@ function LoginSection({ setDisplayPage }) {
         size="lg"
         defaultValue={selectedRole}
         value={selectedRole}
-        onValueChange={(e) => handleRoleChange(e.value)}
+        onValueChange={(e) => setSelectedRole(e.value)}
         items={["HR Manager", "Management", "Employee", "Upper Management"]}
       />
       <Separator width="80%" />
@@ -126,7 +141,7 @@ function LoginSection({ setDisplayPage }) {
           size="lg"
           placeholder="Email"
           onChange={(e) => {
-            setEmail(e.target.value);
+            setuserCredential({ ...userCredential, email: e.target.value });
           }}
         />
       </InputGroup>
@@ -136,11 +151,14 @@ function LoginSection({ setDisplayPage }) {
             size="lg"
             placeholder="Password"
             onChange={(e) => {
-              setPassword(e.target.value);
+              setuserCredential({
+                ...userCredential,
+                password: e.target.value,
+              });
             }}
           />
         </InputGroup>
-        <PasswordStrengthMeter value={password.length} />
+        <PasswordStrengthMeter value={userCredential.password.length} />
       </Stack>
       <HStack justify="space-between" width="60%">
         <Checkbox>Remember Me</Checkbox>
@@ -152,7 +170,7 @@ function LoginSection({ setDisplayPage }) {
         placement="center"
         motionPreset="slide-in-bottom"
         role="alertdialog"
-        open={dialogTrigger}
+        open={dialog.trigger}
       >
         <DialogTrigger asChild>
           <Button
@@ -167,14 +185,17 @@ function LoginSection({ setDisplayPage }) {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
+            <DialogTitle color="fg.error">Error</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <p>Please reenter your email or password</p>
+            <p>{dialog.message}</p>
           </DialogBody>
           <DialogFooter>
             <DialogActionTrigger asChild>
-              <Button variant="outline" onClick={() => setDialogTrigger(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setDialog({ trigger: false, message: "" })}
+              >
                 Close
               </Button>
             </DialogActionTrigger>
@@ -182,10 +203,58 @@ function LoginSection({ setDisplayPage }) {
           <DialogCloseTrigger />
         </DialogContent>
       </DialogRoot>
-      <Button variant="ghost" onClick={() => setDisplayPage("SignUp")}>
+      <Button
+        variant="ghost"
+        onClick={() => setDisplayPage({ page: "SignUp", name: "" })}
+      >
         New user? Create your account
         <LuExternalLink />
       </Button>
+
+      <DialogRoot
+        placement="center"
+        motionPreset="slide-in-top"
+        open={userSelectionDialog}
+        onOpenChange={(e) => setUserSelectionDialog(e.open)}
+        size="lg"
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle textAlign="center">
+              Please choose user to log in as
+            </DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <RadioCard.Root
+              defaultValue=""
+              onValueChange={(e) => setChoosenUser(e.value)}
+            >
+              <Grid gridTemplateColumns="repeat(3, 1fr)" gridGap="4">
+                {users.map((user) => (
+                  <RadioCard.Item key={user.id} value={user.id}>
+                    <RadioCard.ItemHiddenInput />
+                    <RadioCard.ItemControl>
+                      <RadioCard.ItemText>{user.Name}</RadioCard.ItemText>
+                    </RadioCard.ItemControl>
+                  </RadioCard.Item>
+                ))}
+              </Grid>
+            </RadioCard.Root>
+          </DialogBody>
+          <DialogFooter>
+            <DialogActionTrigger asChild>
+              <Button
+                onClick={() =>
+                  setDisplayPage({ page: selectedRole, user: choosenUser })
+                }
+              >
+                Next
+              </Button>
+            </DialogActionTrigger>
+          </DialogFooter>
+          <DialogCloseTrigger />
+        </DialogContent>
+      </DialogRoot>
     </Flex>
   );
 }

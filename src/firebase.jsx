@@ -13,12 +13,6 @@ import {
   where,
   deleteDoc,
 } from "firebase/firestore";
-import {
-  createUserWithEmailAndPassword,
-  getAuth,
-  signInWithEmailAndPassword,
-  signOut,
-} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBp4sUFwck77gAF9Yqa6XgggV1gRrgGGhU",
@@ -31,90 +25,95 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const myApp = initializeApp(firebaseConfig);
-const myDb = getFirestore(myApp);
-
-const auth = getAuth();
-
-async function addUserDetail(user, role) {
-  const authRef = doc(myDb, "auth", user.uid);
-  try {
-    await setDoc(authRef, {
-      role: role,
-    });
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-async function getUserDetail(user, role) {
-  const authRef = doc(myDb, "auth", user.uid);
-  const docSnap = await getDoc(authRef);
-
-  if (docSnap.exists()) {
-    return docSnap.data().role === role;
-  }
-  return false;
-}
-
-async function createNewUser(email, password, role) {
-  try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
-    const userDetail = await addUserDetail(userCredential.user, role);
-    if (userDetail) {
-      return { status: "success", message: "logged in successfully" };
-    } else {
-      return { status: "error", message: "Couldnt add role" };
-    }
-  } catch (error) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    return { status: "error", message: errorMessage };
-  }
-}
-
-async function signInUser(email, password, role) {
-  try {
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
-    const userDetail = await getUserDetail(userCredential.user, role);
-    if (userDetail) {
-      return { status: "success", message: "logged in successfully" };
-    } else {
-      return { status: "error", message: "Role didn't match" };
-    }
-  } catch (error) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    return { status: "error", message: errorMessage };
-  }
-}
+const app = initializeApp(firebaseConfig);
+const myDb = getFirestore(app);
 
 async function getDocsFromDb(collectionName) {
   const q = query(collection(myDb, collectionName));
   const querySnapshot = await getDocs(q);
 
-  const jobListings = [];
+  const docs = [];
 
   querySnapshot.forEach((doc) => {
-    jobListings.push({ id: doc.id, ...doc.data() });
+    docs.push({ id: doc.id, ...doc.data() });
   });
 
-  return jobListings;
+  return docs;
+}
+
+async function createNewUser(
+  firstName,
+  lastName,
+  email,
+  password,
+  role,
+  setDialog
+) {
+  try {
+    const docs = await getDocsFromDb("Auth");
+    if (docs.find((doc) => doc.id === email)) {
+      if (docs.find((doc) => doc.Role === role)) {
+        setDialog({ trigger: true, message: "User already exists" });
+        return false;
+      }
+    }
+
+    await setDoc(doc(myDb, "Auth", email), {
+      FirstName: firstName,
+      LastName: lastName,
+      Email: email,
+      Password: password,
+      Role: role,
+    });
+
+    return true;
+  } catch (err) {
+    console.error("Error creating new user: ", err);
+    setDialog({ trigger: true, message: "Error creating user" });
+  }
+}
+
+async function signInUser(email, password, role, setDialog) {
+  try {
+    const docs = await getDocsFromDb("Auth");
+    const user = docs.find((doc) => doc.Email === email);
+    if (!user) {
+      console.error("User not found, please recheck your email");
+      setDialog({
+        trigger: true,
+        message: "User not found, please recheck your email",
+      });
+      return false;
+    }
+
+    if (user.Password !== password) {
+      console.error("Incorrect password");
+      setDialog({ trigger: true, message: "Incorrect password" });
+      return false;
+    }
+
+    if (user.Role !== role) {
+      console.error("Incorrect role");
+      setDialog({ trigger: true, message: "Incorrect role" });
+      return false;
+    }
+
+    return { returnID: true, user: user.FirstName };
+  } catch (error) {
+    console.error("Error signing in user: ", error);
+    setDialog({ trigger: true, message: "Error signing in user" });
+    return false;
+  }
 }
 
 async function addDocsToDb(collectionName, data) {
-  const docRef = await addDoc(collection(myDb, collectionName), data);
-  console.log("Document written with ID: ", docRef.id);
-  return docRef.id;
+  try {
+    const docRef = await addDoc(collection(myDb, collectionName), data);
+    console.log("Document written with ID: ", docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding document: ", error);
+  }
 }
 
 async function updateDocInDb(collectionName, docId, data) {

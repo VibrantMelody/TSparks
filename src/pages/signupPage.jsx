@@ -1,6 +1,6 @@
 import { useState } from "react";
 import logo from "../assets/images/logo/tsparks-high-resolution-logo-transparent-black-text.png";
-import signupBackground from "../assets/images/michal-parzuchowski-lHkUBtUiI2Q-unsplash.jpg";
+import signupBackground from "../assets/images/josh-calabrese-Ev1XqeVL2wI-unsplash.jpg";
 import {
   Text,
   Box,
@@ -79,31 +79,51 @@ function SignupPage({ setDisplayPage }) {
 
 function SignupSection({ setDisplayPage }) {
   const [selectedRole, setSelectedRole] = useState("Employee");
-  // const [password, setPassword] = useState("");
-  // const [confirmPassword, setConfirmPassword] = useState("");
-  // const [email, setEmail] = useState("");
-  const [dialogTrigger, setDialogTrigger] = useState(false);
+  const [userData, setUserData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-  let email,
-    firstName,
-    lastName,
-    password = "",
-    confirmPassword = "";
+  const [dialog, setDialog] = useState({
+    trigger: false,
+    message: "",
+  });
+
   const roles = ["Management", "HR Manager", "Employee"];
 
   async function handleSignUp() {
-    if (password !== confirmPassword) {
-      setDialogTrigger(true);
+    if (
+      !userData.email ||
+      !userData.firstName ||
+      !userData.lastName ||
+      !userData.password ||
+      !userData.confirmPassword
+    ) {
+      setDialog({ trigger: true, message: "Please fill in all fields" });
       return;
     }
-    const signUp = await createNewUser(email, password, selectedRole);
-    const status = signUp.status;
-    const message = signUp.message;
 
-    if (status == "success") {
-      setDisplayPage("Login");
-    } else {
-      setDialogTrigger(true);
+    if (userData.password !== userData.confirmPassword) {
+      setDialog({ trigger: true, message: "Passwords do not match" });
+      return;
+    }
+    const signUp = await createNewUser(
+      userData.firstName,
+      userData.lastName,
+      userData.email,
+      userData.password,
+      selectedRole,
+      setDialog
+    );
+
+    if (signUp == true) {
+      setDialog({
+        trigger: true,
+        message: "User created successfully, Please Log In",
+      });
     }
   }
 
@@ -135,7 +155,7 @@ function SignupSection({ setDisplayPage }) {
             size="lg"
             placeholder="First Name"
             onChange={(e) => {
-              firstName = e.target.value;
+              setUserData({ ...userData, firstName: e.target.value });
             }}
           />
         </InputGroup>
@@ -144,7 +164,7 @@ function SignupSection({ setDisplayPage }) {
             size="lg"
             placeholder="Last Name"
             onChange={(e) => {
-              lastName = e.target.value;
+              setUserData({ ...userData, lastName: e.target.value });
             }}
           />
         </InputGroup>
@@ -155,7 +175,16 @@ function SignupSection({ setDisplayPage }) {
           size="lg"
           placeholder="Email"
           onChange={(e) => {
-            email = e.target.value;
+            setUserData({ ...userData, email: e.target.value });
+          }}
+        />
+      </InputGroup>
+      <InputGroup flex="1" width="60%" startElement={<Lock height="16px" />}>
+        <PasswordInput
+          size="lg"
+          placeholder="Password"
+          onChange={(e) => {
+            setUserData({ ...userData, password: e.target.value });
           }}
         />
       </InputGroup>
@@ -163,25 +192,13 @@ function SignupSection({ setDisplayPage }) {
         <InputGroup flex="1" startElement={<Lock height="16px" />}>
           <PasswordInput
             size="lg"
-            placeholder="Password"
-            onChange={(e) => {
-              password = e.target.value;
-            }}
-          />
-        </InputGroup>
-        <PasswordStrengthMeter value={password.length} />
-      </Stack>
-      <Stack width="60%">
-        <InputGroup flex="1" startElement={<Lock height="16px" />}>
-          <PasswordInput
-            size="lg"
             placeholder="Confirm Password"
             onChange={(e) => {
-              confirmPassword = e.target.value;
+              setUserData({ ...userData, confirmPassword: e.target.value });
             }}
           />
         </InputGroup>
-        <PasswordStrengthMeter value={confirmPassword.length} />
+        <PasswordStrengthMeter value={userData.confirmPassword.length} />
       </Stack>
       <HStack justify="space-between" width="60%">
         <Checkbox>I agree to the Terms of Service and Privacy Policy</Checkbox>
@@ -190,7 +207,7 @@ function SignupSection({ setDisplayPage }) {
         placement="center"
         motionPreset="slide-in-bottom"
         role="alertdialog"
-        open={dialogTrigger}
+        open={dialog.trigger}
       >
         <DialogTrigger asChild>
           <Button
@@ -205,14 +222,17 @@ function SignupSection({ setDisplayPage }) {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
+            <DialogTitle color="fg.warning">Info</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <p>Please check your inputs and try again</p>
+            <p>{dialog.message}</p>
           </DialogBody>
           <DialogFooter>
             <DialogActionTrigger asChild>
-              <Button variant="outline" onClick={() => setDialogTrigger(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setDialog({ trigger: false, message: "" })}
+              >
                 Close
               </Button>
             </DialogActionTrigger>
@@ -220,7 +240,10 @@ function SignupSection({ setDisplayPage }) {
           <DialogCloseTrigger />
         </DialogContent>
       </DialogRoot>
-      <Button variant="ghost" onClick={() => setDisplayPage("Login")}>
+      <Button
+        variant="ghost"
+        onClick={() => setDisplayPage({ page: "Login", name: "" })}
+      >
         Already have an account? Sign in
         <LuExternalLink />
       </Button>
