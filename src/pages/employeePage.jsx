@@ -19,6 +19,8 @@ import {
   StackSeparator,
   Alert,
   Badge,
+  Float,
+  Icon,
 } from "@chakra-ui/react";
 import {
   LuUser,
@@ -52,14 +54,28 @@ import {
 } from "../components/ui/dialog";
 import {
   Award,
+  BookOpen,
+  Building2,
+  Clock,
+  Contact,
+  Delete,
   Earth,
+  LaptopMinimalCheck,
   LayoutDashboard,
+  ListPlus,
   ListTodo,
   LogOut,
+  Mail,
+  MapPin,
   Ribbon,
+  Save,
   Send,
+  ShieldCheck,
   Sparkle,
   SquarePen,
+  SquareUser,
+  Trash2,
+  UserPen,
   UserRoundCog,
   Users,
 } from "lucide-react";
@@ -69,7 +85,12 @@ import { InputGroup } from "../components/ui/input-group";
 function Dialog({ button, title, body, closeButton }) {
   const [open, setOpen] = useState(false);
   return (
-    <DialogRoot size="lg" open={open} onOpenChange={(e) => setOpen(e.open)}>
+    <DialogRoot
+      size="lg"
+      open={open}
+      onOpenChange={(e) => setOpen(e.open)}
+      placement="center"
+    >
       <DialogTrigger asChild>{button}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -87,10 +108,14 @@ function EmployeePage({ setDisplayPage, user }) {
   const [sidebarSelected, setSidebarSelected] = useState("Dashboard");
   const [activeUser, setActiveUser] = useState({});
   const [users, setUsers] = useState([]);
+  const [jobs, setJobs] = useState([]);
 
   const refreshData = useCallback(async () => {
     const fetchedUsers = await getDocsFromDb("Users");
     setUsers(fetchedUsers);
+
+    const jobListings = await getDocsFromDb("JobListings");
+    setJobs(jobListings);
 
     const activeUser = fetchedUsers.find((fetched) => fetched.id == user);
     setActiveUser(activeUser);
@@ -126,6 +151,14 @@ function EmployeePage({ setDisplayPage, user }) {
         {sidebarSelected === "Dashboard" && (
           <Dashboard activeUser={activeUser} users={users} />
         )}
+
+        {sidebarSelected === "Available Jobs" && (
+          <AvailableJobs activeUser={activeUser} users={users} jobs={jobs} />
+        )}
+
+        {sidebarSelected === "Learnings" && (
+          <Learnings activeUser={activeUser} users={users} />
+        )}
         {sidebarSelected === "Messages" && (
           <Messages
             users={users}
@@ -141,6 +174,8 @@ function EmployeePage({ setDisplayPage, user }) {
 function Sidebar({ sidebarSelected, setSidebarSelected, setDisplayPage }) {
   const buttons = [
     { label: "Dashboard", icon: <LayoutDashboard /> },
+    { label: "Available Jobs", icon: <ListPlus /> },
+    { label: "Learnings", icon: <BookOpen /> },
     { label: "Messages", icon: <Send /> },
   ];
 
@@ -183,6 +218,17 @@ function Sidebar({ sidebarSelected, setSidebarSelected, setDisplayPage }) {
 }
 
 function Dashboard({ activeUser, users }) {
+  const [userDetails, setUserDetails] = useState({
+    fullName: "",
+    email: "",
+    location: "",
+    jobTitle: "",
+    department: "",
+    skills: "",
+    certifications: "",
+    availability: "",
+  });
+
   const userName =
     activeUser && activeUser.Name ? activeUser.Name.toUpperCase() : "";
 
@@ -201,7 +247,153 @@ function Dashboard({ activeUser, users }) {
   );
 
   return (
-    <VStack gap="1rem">
+    <VStack gap="1rem" position="relative">
+      <Dialog
+        button={
+          <Float oat placement="top-start" offsetX="12">
+            <Button variant="ghost">
+              <UserPen /> Edit Details
+            </Button>
+          </Float>
+        }
+        title="Edit Details"
+        body={
+          <VStack>
+            <InputGroup
+              startElement={
+                <Icon size="md">
+                  <Contact />
+                </Icon>
+              }
+            >
+              <Input
+                placeholder="Full Name"
+                value={userDetails.fullName}
+                onChange={(e) =>
+                  setUserDetails({ ...userDetails, fullName: e.target.value })
+                }
+              />
+            </InputGroup>
+            <InputGroup
+              startElement={
+                <Icon size="md">
+                  <Mail />
+                </Icon>
+              }
+            >
+              <Input
+                placeholder="Email"
+                value={userDetails.email}
+                onChange={(e) =>
+                  setUserDetails({ ...userDetails, email: e.target.value })
+                }
+              />
+            </InputGroup>
+            <InputGroup
+              startElement={
+                <Icon size="md">
+                  <MapPin />
+                </Icon>
+              }
+            >
+              <Input
+                placeholder="Location"
+                value={userDetails.location}
+                onChange={(e) =>
+                  setUserDetails({ ...userDetails, location: e.target.value })
+                }
+              />
+            </InputGroup>
+            <InputGroup
+              startElement={
+                <Icon size="md">
+                  <SquareUser />
+                </Icon>
+              }
+            >
+              <Input
+                placeholder="Job Title"
+                value={userDetails.jobTitle}
+                onChange={(e) =>
+                  setUserDetails({ ...userDetails, jobTitle: e.target.value })
+                }
+              />
+            </InputGroup>
+            <InputGroup
+              startElement={
+                <Icon size="md">
+                  <Building2 />
+                </Icon>
+              }
+            >
+              <Input
+                placeholder="Department"
+                value={userDetails.department}
+                onChange={(e) =>
+                  setUserDetails({ ...userDetails, department: e.target.value })
+                }
+              />
+            </InputGroup>
+            <InputGroup
+              startElement={
+                <Icon size="md">
+                  <LaptopMinimalCheck />
+                </Icon>
+              }
+            >
+              <Input
+                placeholder="Skills - Comma Seperated"
+                value={userDetails.skills}
+                onChange={(e) =>
+                  setUserDetails({ ...userDetails, skills: e.target.value })
+                }
+              />
+            </InputGroup>
+            <InputGroup
+              startElement={
+                <Icon size="md">
+                  <ShieldCheck />
+                </Icon>
+              }
+            >
+              <Input
+                placeholder="Certifications - Comma Seperated"
+                value={userDetails.certifications}
+                onChange={(e) =>
+                  setUserDetails({
+                    ...userDetails,
+                    certifications: e.target.value,
+                  })
+                }
+              />
+            </InputGroup>
+            <InputGroup
+              startElement={
+                <Icon size="md">
+                  <Clock />
+                </Icon>
+              }
+            >
+              <Input
+                placeholder="Availability"
+                value={userDetails.availability}
+                onChange={(e) =>
+                  setUserDetails({
+                    ...userDetails,
+                    availability: e.target.value,
+                  })
+                }
+              />
+            </InputGroup>
+          </VStack>
+        }
+        closeButton={
+          <Button>
+            <Save /> Submit
+          </Button>
+        }
+      />
+
       <Text textStyle="2xl" fontWeight="bold">
         Welcome {userName}
       </Text>
@@ -325,7 +517,7 @@ function Dashboard({ activeUser, users }) {
             paddingBottom="4"
             color="red.fg"
           >
-            {activeUser.feedback}
+            {activeUser.Feedback}
           </Text>
         </Container>
       </Grid>
@@ -399,6 +591,22 @@ function Messages({ activeUser, users, refreshData }) {
       setDialog({
         trigger: true,
         message: "Failed to send message",
+      });
+    }
+  }
+
+  async function handleMessageDelete(message) {
+    try {
+      await deleteDocFromDb("Messages", message.id);
+      toaster.create({
+        description: "Message Deleted Successfully",
+        type: "success",
+      });
+      refreshData();
+    } catch (err) {
+      toaster.create({
+        description: "Couldn't delete message",
+        type: "error",
       });
     }
   }
@@ -479,15 +687,71 @@ function Messages({ activeUser, users, refreshData }) {
       <Container width="100%" marginTop="5rem" padding="1rem">
         <Text>Conversations</Text>
         {allMessages.map((message, index) => (
-          <Box key={index} p={4} boxShadow="md" borderRadius="lg">
-            <Text fontWeight="bold">From: {message.Sender}</Text>
-            <Text fontWeight="bold">To: {message.Receiver.join(", ")}</Text>
-            <Text>{message.Message}</Text>
-          </Box>
+          <HStack
+            key={index}
+            p={4}
+            boxShadow="md"
+            borderRadius="lg"
+            justifyContent="space-between"
+          >
+            <VStack align="start">
+              <Text fontWeight="bold">From: {message.Sender}</Text>
+              <Text fontWeight="bold">To: {message.Receiver.join(", ")}</Text>
+              <Text>{message.Message}</Text>
+            </VStack>
+            <Button
+              colorPalette="red"
+              onClick={() => handleMessageDelete(message)}
+            >
+              <Trash2 />
+            </Button>
+          </HStack>
         ))}
       </Container>
     </Container>
   );
 }
 
+function AvailableJobs({ activeUser, users, jobs }) {
+  return (
+    <VStack gap="5">
+      <Text fontWeight="bold" fontSize="2xl">
+        Available Jobs
+      </Text>
+      <Grid gridTemplateColumns={"repeat(3, 1fr)"} gridGap="4">
+        {jobs.map((job, index) => (
+          <VStack
+            key={index}
+            p={4}
+            boxShadow="md"
+            borderRadius="lg"
+            justifyContent="space-between"
+            separator={<StackSeparator />}
+          >
+            <Text fontWeight="bold">{job.Title}</Text>
+            <Text textAlign="center">{job.Description}</Text>
+            <Text>
+              {job.Location} • {job.Department}
+            </Text>
+            {
+              job.Requirements && (
+                <Text>Requirements: {job.Requirements.join(",")}</Text>
+              )
+              // job.Requirements.map((requirement, index) => (
+              //   <Text key={index}>{requirement}</Text>
+              // ))
+            }
+            <Text color="fg.info">Start Date: {job.StartDate}</Text>
+            <Text color="fg.error">End Date: {job.EndDate}</Text>
+            <Button padding="0 2rem">Apply</Button>
+          </VStack>
+        ))}
+      </Grid>
+    </VStack>
+  );
+}
+
+function Learnings({ activeUser, users }) {
+  return <Text>Learnings</Text>;
+}
 export default EmployeePage;

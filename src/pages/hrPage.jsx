@@ -20,6 +20,7 @@ import {
   StackSeparator,
   Alert,
   Badge,
+  Icon,
 } from "@chakra-ui/react";
 import {
   LuUser,
@@ -53,6 +54,9 @@ import {
 } from "../components/ui/dialog";
 import {
   Award,
+  CalendarClock,
+  CalendarMinus,
+  CalendarPlus,
   ChartBar,
   Earth,
   LayoutDashboard,
@@ -67,6 +71,15 @@ import {
 } from "lucide-react";
 import { toaster } from "../components/ui/toaster";
 import { InputGroup } from "../components/ui/input-group";
+import { startAfter } from "firebase/firestore";
+import {
+  FaCalendarMinus,
+  FaCalendarPlus,
+  FaRegCalendarAlt,
+  FaRegCalendarMinus,
+  FaRegCalendarPlus,
+} from "react-icons/fa";
+import { FaClapperboard } from "react-icons/fa6";
 
 function HRPage({ setDisplayPage, user }) {
   const [sidebarSelected, setSidebarSelected] = useState("Dashboard");
@@ -490,26 +503,45 @@ function Dialog({ button, title, body, closeButton }) {
 
 function JobDialog({ refreshData }) {
   const [dialogTrigger, setDialogTrigger] = useState(false);
+  const [jobPostingDetails, setJobPostingDetails] = useState({
+    title: "",
+    department: "",
+    location: "",
+    description: "",
+    requirements: [],
+    yearsOfExperience: null,
+    startDate: "",
+    applicationDeadline: "",
+  });
 
-  const [title, setTitle] = useState("");
-  const [department, setDepartment] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [requirements, setRequirements] = useState([]);
+  async function handleCreateJob() {
+    try {
+      await addDocsToDb("JobListings", {
+        Title: jobPostingDetails.title,
+        Department: jobPostingDetails.department,
+        Location: jobPostingDetails.location,
+        Description: jobPostingDetails.description,
+        Requirements: jobPostingDetails.requirements,
+        StartDate: jobPostingDetails.startDate,
+        EndDate: jobPostingDetails.endDate,
+        Applications: [],
+        Status: "Active",
+      });
 
-  const handleCreateJob = async () => {
-    await createJobWithApplications({
-      Title: title,
-      Department: department,
-      Location: location,
-      Description: description,
-      Requirements: requirements,
-      Status: "Active",
-    });
-
-    await refreshData();
-    setDialogTrigger(false);
-  };
+      await refreshData();
+      toaster.create({
+        description: "Job created successfully",
+        type: "success",
+      });
+      setDialogTrigger(false);
+    } catch (error) {
+      toaster.create({
+        description: "Job creation failed",
+        type: "error",
+      });
+      console.error(error);
+    }
+  }
 
   return (
     <DialogRoot
@@ -528,38 +560,105 @@ function JobDialog({ refreshData }) {
             <InputGroup startElement={<LuUser />}>
               <Input
                 placeholder="Job Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={jobPostingDetails.title}
+                onChange={(e) =>
+                  setJobPostingDetails({
+                    ...jobPostingDetails,
+                    title: e.target.value,
+                  })
+                }
               />
             </InputGroup>
             <InputGroup startElement={<LuBuilding2 />}>
               <Input
                 placeholder="Department"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
+                value={jobPostingDetails.department}
+                onChange={(e) =>
+                  setJobPostingDetails({
+                    ...jobPostingDetails,
+                    department: e.target.value,
+                  })
+                }
               />
             </InputGroup>
             <InputGroup startElement={<LuBuilding2 />}>
               <Input
                 placeholder="Location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                value={jobPostingDetails.location}
+                onChange={(e) =>
+                  setJobPostingDetails({
+                    ...jobPostingDetails,
+                    location: e.target.value,
+                  })
+                }
               />
             </InputGroup>
             <InputGroup startElement={<LuFileText />}>
               <Input
                 placeholder="Description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={jobPostingDetails.description}
+                onChange={(e) =>
+                  setJobPostingDetails({
+                    ...jobPostingDetails,
+                    description: e.target.value,
+                  })
+                }
               />
             </InputGroup>
             <InputGroup startElement={<LuFileText />}>
               <Input
                 placeholder="Requirements (comma separated)"
-                value={requirements}
-                onChange={(e) => setRequirements(e.target.value.split(","))}
+                value={jobPostingDetails.requirements}
+                onChange={(e) =>
+                  setJobPostingDetails({
+                    ...jobPostingDetails,
+                    requirements: e.target.value.split(","),
+                  })
+                }
               />
             </InputGroup>
+            <InputGroup startElement={<FaRegCalendarAlt />}>
+              <Input
+                placeholder="Years of Experience"
+                value={jobPostingDetails.yearsOfExperience}
+                onChange={(e) =>
+                  setJobPostingDetails({
+                    ...jobPostingDetails,
+                    yearsOfExperience: Number(e.target.value),
+                  })
+                }
+              />
+            </InputGroup>
+            <HStack spacing="4">
+              <Text>Start Date</Text>
+              <Input
+                flexGrow="1"
+                type="date"
+                placeholder="Start Date"
+                value={jobPostingDetails.startDate}
+                onChange={(e) =>
+                  setJobPostingDetails({
+                    ...jobPostingDetails,
+                    startDate: e.target.value,
+                  })
+                }
+              />
+            </HStack>
+            <HStack spacing="4">
+              <Text>Application Deadline</Text>
+              <Input
+                type="date"
+                flexGrow="1"
+                placeholder="Application Deadline"
+                value={jobPostingDetails.endDate}
+                onChange={(e) =>
+                  setJobPostingDetails({
+                    ...jobPostingDetails,
+                    applicationDeadline: e.target.value,
+                  })
+                }
+              />
+            </HStack>
           </Stack>
         </DialogBody>
         <DialogFooter>
